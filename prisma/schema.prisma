@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  authCodes AuthCode[]
+  tokens    Token[]
+}
+
+model AuthCode {
+  id                  Int      @id @default(autoincrement())
+  code                String   @unique
+  userId              Int
+  clientId            String
+  redirectUri         String
+  codeChallenge       String
+  codeChallengeMethod String   @default("S256")
+  scope               String   @default("openid")
+  expiresAt           DateTime
+  used                Boolean  @default(false)
+  createdAt           DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Token {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  clientId  String
+  scope     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
