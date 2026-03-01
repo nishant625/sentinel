@@ -7,14 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Client {
+  id            Int      @id @default(autoincrement())
+  clientId      String   @unique
+  clientSecret  String?
+  name          String
+  isPublic      Boolean  @default(true)
+  redirectUris  String[]
+  scopes        String   @default("openid")
+  tokenFormat   String   @default("jwt")   // "jwt" | "opaque"
+  createdAt     DateTime @default(now())
+
+  authCodes     AuthCode[]
+  tokens        Token[]
+  refreshTokens RefreshToken[]
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
 
-  authCodes AuthCode[]
-  tokens    Token[]
+  authCodes     AuthCode[]
+  tokens        Token[]
+  refreshTokens RefreshToken[]
 }
 
 model AuthCode {
@@ -30,7 +47,8 @@ model AuthCode {
   used                Boolean  @default(false)
   createdAt           DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  client Client @relation(fields: [clientId], references: [clientId])
 }
 
 model Token {
@@ -42,5 +60,20 @@ model Token {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  client Client @relation(fields: [clientId], references: [clientId])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique   // SHA-256 of the actual token
+  userId    Int
+  clientId  String
+  scope     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  client Client @relation(fields: [clientId], references: [clientId])
 }

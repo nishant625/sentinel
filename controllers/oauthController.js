@@ -1,7 +1,8 @@
 const oauthService = require('../services/oauthService');
 const authService = require('../services/authService');
+const clientService = require('../services/clientService');
 
-const authorize = (req, res) => {
+const authorize = async (req, res) => {
   const {
     client_id,
     redirect_uri,
@@ -22,6 +23,15 @@ const authorize = (req, res) => {
 
   if (code_challenge_method !== 'S256') {
     return res.status(400).json({ error: 'Only code_challenge_method=S256 is supported' });
+  }
+
+  const client = await clientService.getClient(client_id);
+  if (!client) {
+    return res.status(400).json({ error: 'Unknown client_id' });
+  }
+
+  if (!clientService.validateRedirectUri(client, redirect_uri)) {
+    return res.status(400).json({ error: 'redirect_uri not registered for this client' });
   }
 
   const requestId = oauthService.savePendingRequest({
@@ -81,33 +91,58 @@ const authzDirect = async (req, res) => {
 };
 
 const token = async (req, res) => {
-  const { grant_type, code, redirect_uri, client_id, code_verifier } = req.body;
+  const { grant_type, code, redirect_uri, client_id, code_verifier, refresh_token } = req.body;
 
-  if (grant_type !== 'authorization_code') {
-    return res.status(400).json({ error: 'Unsupported grant_type' });
+  if (grant_type === 'authorization_code') {
+    if (!code || !redirect_uri || !client_id || !code_verifier) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    try {
+      const { accessToken, refreshToken } = await authService.exchangeCodeForToken({
+        code,
+        clientId: client_id,
+        redirectUri: redirect_uri,
+        codeVerifier: code_verifier,
+      });
+
+      return res.json({
+        access_token: accessToken,
+        token_type: 'Bearer',
+        expires_in: 900,
+        refresh_token: refreshToken,
+        refresh_token_expires_in: 2592000,
+        scope: 'openid',
+      });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
   }
 
-  if (!code || !redirect_uri || !client_id || !code_verifier) {
-    return res.status(400).json({ error: 'Missing required parameters' });
+  if (grant_type === 'refresh_token') {
+    if (!refresh_token || !client_id) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    try {
+      const { accessToken, refreshToken } = await authService.refreshAccessToken({
+        refreshToken: refresh_token,
+        clientId: client_id,
+      });
+
+      return res.json({
+        access_token: accessToken,
+        token_type: 'Bearer',
+        expires_in: 900,
+        refresh_token: refreshToken,
+        refresh_token_expires_in: 2592000,
+      });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
   }
 
-  try {
-    const accessToken = await authService.exchangeCodeForToken({
-      code,
-      clientId: client_id,
-      redirectUri: redirect_uri,
-      codeVerifier: code_verifier,
-    });
-
-    res.json({
-      access_token: accessToken,
-      token_type: 'Bearer',
-      expires_in: 86400,
-      scope: 'openid',
-    });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+  return res.status(400).json({ error: 'Unsupported grant_type' });
 };
 
 const introspect = async (req, res) => {
@@ -125,4 +160,20 @@ const introspect = async (req, res) => {
   }
 };
 
-module.exports = { authorize, authzDirect, token, introspect };
+const revoke = async (req, res) => {
+  const { token, client_id } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Missing token' });
+  }
+
+  try {
+    await authService.revokeRefreshToken({ refreshToken: token, clientId: client_id });
+  } catch {
+    // Per RFC 7009 — always 200, even if token doesn't exist
+  }
+
+  res.json({});
+};
+
+module.exports = { authorize, authzDirect, token, introspect, revoke };
