@@ -15,6 +15,11 @@ Each file covers one topic. Read them in order.
 | 04 | [Tokens](./04-tokens.md) | Opaque vs JWT, id_token, refresh tokens |
 | 05 | [Clients](./05-clients.md) | What a client is, registration, public vs confidential, state/CSRF |
 | 06 | [OIDC](./06-oidc.md) | Identity layer on top of OAuth, id_token, userinfo, discovery |
+| 07 | [JWKS](./07-jwks.md) | Public key endpoints, key rotation, kid, RS256 vs ES256 vs HS256 |
+| 08 | [OpenID Configuration](./08-openid-config.md) | The discovery document — every field, how SDKs use it |
+| 09 | [Token Format Choice](./09-token-format-choice.md) | How auth servers let clients pick opaque vs JWT, when to use each |
+| 10 | [PKCE + State + Public Keys](./10-pkce-state-and-public-keys.md) | Is PKCE the standard? Yes. Why the public JWKS URL is not a security risk. |
+| 11 | [Client Registry and Tenancy](./11-client-registry-and-tenancy.md) | Should the server generate client IDs? Auth0 model vs Keycloak model explained. |
 
 ---
 
