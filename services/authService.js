@@ -50,46 +50,23 @@ const createAuthCode = async ({ userId, clientId, redirectUri, codeChallenge, co
 const issueTokenPair = async ({ userId, email, clientId, scope, tokenFormat }) => {
   let accessToken;
 
-  if (tokenFormat === 'jwt') {
-    // JWT access token — self-contained, verified locally via JWKS
-    accessToken = signAccessToken({ userId, email, clientId, scope });
+  // JWT access token — self-contained, no DB storage needed
+  // (opaque token path commented out below for reference)
+  accessToken = signAccessToken({ userId, email, clientId, scope });
 
-    await prisma.token.create({
-      data: {
-        token: accessToken,
-        userId,
-        clientId,
-        scope,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 min
-      },
-    });
-  } else {
-    // ── OPAQUE TOKEN (legacy path — kept for reference) ──────────────────────
-    // accessToken = crypto.randomBytes(32).toString('hex');
-    //
-    // await prisma.token.create({
-    //   data: {
-    //     token: accessToken,
-    //     userId,
-    //     clientId,
-    //     scope,
-    //     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-    //   },
-    // });
-    // ─────────────────────────────────────────────────────────────────────────
-
-    // Opaque clients fall back to JWT for now until opaque path is re-enabled
-    accessToken = signAccessToken({ userId, email, clientId, scope });
-    await prisma.token.create({
-      data: {
-        token: accessToken,
-        userId,
-        clientId,
-        scope,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
-      },
-    });
-  }
+  // ── OPAQUE TOKEN (legacy path — kept for reference) ──────────────────────
+  // accessToken = crypto.randomBytes(32).toString('hex');
+  //
+  // await prisma.token.create({
+  //   data: {
+  //     token: accessToken,
+  //     userId,
+  //     clientId,
+  //     scope,
+  //     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+  //   },
+  // });
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Refresh token — always opaque, stored hashed, 30 days
   const refreshTokenRaw = crypto.randomBytes(40).toString('hex');
@@ -103,7 +80,7 @@ const issueTokenPair = async ({ userId, email, clientId, scope, tokenFormat }) =
     },
   });
 
-  log('tokens issued  format=%s user=%d client=%s scope=%s', tokenFormat ?? 'jwt', userId, clientId, scope);
+  log('tokens issued  user=%d client=%s scope=%s', userId, clientId, scope);
   return { accessToken, refreshToken: refreshTokenRaw };
 };
 
