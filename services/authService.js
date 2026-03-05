@@ -47,7 +47,7 @@ const createAuthCode = async ({ userId, clientId, redirectUri, codeChallenge, co
 
 // ─── Token issuance ───────────────────────────────────────────────────────────
 
-const issueTokenPair = async ({ userId, email, clientId, scope, tokenFormat }) => {
+const issueTokenPair = async ({ userId, email, clientId, scope }) => {
   let accessToken;
 
   // JWT access token — self-contained, no DB storage needed
