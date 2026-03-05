@@ -21,6 +21,7 @@ Theory behind what Sentinel implements. Start here if you're learning.
 | [09 Token Format Choice](./learn/09-token-format-choice.md) | Opaque vs JWT per client |
 | [10 PKCE + State + Public Keys](./learn/10-pkce-state-and-public-keys.md) | Is PKCE standard? Public key question answered |
 | [11 Client Registry & Tenancy](./learn/11-client-registry-and-tenancy.md) | Auth0 model vs Keycloak model |
+| [12 Persistent Keys](./learn/12-persistent-keys.md) | Why public keys are exposed, generating + loading RSA keys in production |
 
 ---
 

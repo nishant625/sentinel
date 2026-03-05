@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentinel Admin</title>
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+
+<!-- ── Login ─────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>Sentinel</h1>
+    <p>Admin Console</p>
+    <div>
+      <label>Admin Secret</label>
+      <input type="password" id="secret-input" placeholder="Enter admin secret" />
+      <div class="error-msg" id="login-error"></div>
+    </div>
+    <br/>
+    <button class="btn-primary" onclick="login()" style="width:100%">Sign In</button>
+  </div>
+</div>
+
+<!-- ── Main ──────────────────────────────────── -->
+<div id="main-screen">
+  <header>
+    <h1>Sentinel Admin</h1>
+    <button class="btn-logout" onclick="logout()">Sign out</button>
+  </header>
+
+  <div class="container">
+
+    <!-- Secret reveal (shown once after create) -->
+    <div class="secret-box" id="secret-reveal" style="display:none">
+      <h3>Client Secret — copy it now</h3>
+      <p>This is the only time this secret will be shown. Store it somewhere safe.</p>
+      <div class="secret-value">
+        <span id="secret-reveal-value"></span>
+        <button class="btn-ghost" style="white-space:nowrap;padding:5px 12px;font-size:12px" onclick="copySecret()">Copy</button>
+      </div>
+    </div>
+
+    <!-- Create client -->
+    <div class="card">
+      <h2>Register Client</h2>
+      <div class="form-grid">
+        <div>
+          <label>Name</label>
+          <input type="text" id="f-name" placeholder="My React App" />
+        </div>
+        <div>
+          <label>Token Format</label>
+          <select id="f-format">
+            <option value="jwt">JWT</option>
+            <option value="opaque">Opaque</option>
+          </select>
+        </div>
+        <div class="form-full">
+          <label>Redirect URIs <span style="color:#555">(one per line)</span></label>
+          <textarea id="f-uris" placeholder="http://localhost:3000/callback&#10;http://localhost:5173/callback"></textarea>
+        </div>
+        <div>
+          <label>Scopes</label>
+          <input type="text" id="f-scopes" value="openid" />
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <div class="toggle-row">
+            <input type="checkbox" id="f-public" checked />
+            <label for="f-public">Public client (SPA / mobile — uses PKCE, no secret)</label>
+          </div>
+        </div>
+        <div class="form-full" style="display:flex;justify-content:flex-end;gap:12px;align-items:center">
+          <span class="error-msg" id="create-error"></span>
+          <button class="btn-primary" onclick="createClient()">Register Client</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Client list -->
+    <div class="card">
+      <h2>Registered Clients</h2>
+      <div class="client-list" id="client-list">
+        <div class="empty">Loading...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

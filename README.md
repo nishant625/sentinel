@@ -1,223 +1,150 @@
 # Sentinel
 
-OAuth 2.0 Authorization Server with PKCE support.
+A self-hosted OAuth 2.0 authorization server. Implements the Authorization Code flow with PKCE, issues RS256 JWT access tokens, refresh token rotation, and a client registry with admin UI.
 
-## Features
+Built to understand how auth servers like Auth0 and Keycloak work under the hood.
 
-- OAuth 2.0 Authorization Code Flow
-- PKCE (Proof Key for Code Exchange) with S256
-- Opaque access tokens
-- Token introspection endpoint (RFC 7662)
-- PostgreSQL database with Prisma ORM
-- bcrypt password hashing
+---
 
-## Prerequisites
+## What it does
 
-- Node.js (v14 or higher)
-- Docker (for running PostgreSQL)
+- Authorization Code flow + PKCE (S256)
+- RS256 JWT access tokens — verified locally by resource servers via JWKS
+- Refresh tokens with rotation and revocation
+- Client registry — register apps, validate redirect URIs, public vs confidential clients
+- Admin UI at `/admin.html` — register and manage clients in a browser
+- JWKS endpoint + OpenID Connect discovery document
 
-## Environment Variables
+---
 
-Create a `.env` file in the project root:
-
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/database_name
-PORT=4000
-```
-
-### Configuration Details
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5433/auth_db` |
-| `PORT` | Server port | `4000` |
-
-The defaults match the Docker setup above.
-
-## Installation
+## Quickstart
 
 ```bash
 npm install
-```
+cp .env.example .env   # fill in your values
 
-## Database Setup
-
-Start the PostgreSQL container:
-
-```bash
+# Start PostgreSQL (Docker)
 docker run -d \
-  --name auth-db \
+  --name sentinel-db \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=postgres \
   -e POSTGRES_DB=auth_db \
   -p 5433:5432 \
-  -v auth-db-data:/var/lib/postgresql/data \
   postgres:16-alpine
-```
 
-Run migrations and optionally seed test users:
+npx prisma migrate dev
+node prisma/seed.js
 
-```bash
-npm run db:migrate
-npm run db:seed
-```
-
-The seed command creates test users with password `password123`:
-- alice@example.com
-- bob@example.com
-- nishant@example.com
-
-## Running the Server
-
-```bash
-# Development mode with auto-reload
 npm run dev
-
-# Production mode
-npm start
 ```
 
-## API Endpoints
+Server runs on `http://localhost:4000`.
 
-### Health Check
+---
 
-```
-GET /health
-```
+## Environment
 
-**Response:**
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-02-21T10:30:00.000Z"
-}
-```
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/auth_db
+PORT=4000
+ADMIN_SECRET=change-me-in-production
+ISSUER_URL=http://localhost:4000
 
-### OAuth 2.0 Authorization
-
-```
-GET /oauth/authorize
+# RSA key pair — leave blank in dev (ephemeral keys generated on startup)
+# In production generate once with OpenSSL and paste here (newlines as \n)
+# See docs/learn/12-persistent-keys.md
+PRIVATE_KEY_PEM=
+PUBLIC_KEY_PEM=
 ```
 
-**Query Parameters:**
-- `client_id` (required)
-- `redirect_uri` (required)
-- `response_type` (required) - must be `code`
-- `state` (required)
-- `code_challenge` (required)
-- `code_challenge_method` (required) - must be `S256`
-- `scope` (optional) - defaults to `openid`
+### Generating a persistent key pair
 
-**Response:**
-Returns HTML login form.
-
-### Token Exchange
-
-```
-POST /oauth/token
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "grant_type": "authorization_code",
-  "code": "auth_code_here",
-  "redirect_uri": "https://your-app.com/callback",
-  "client_id": "your_client_id",
-  "code_verifier": "pkce_verifier"
-}
-```
-
-**Response:**
-```json
-{
-  "access_token": "opaque_token_here",
-  "token_type": "Bearer",
-  "expires_in": 86400,
-  "scope": "openid"
-}
-```
-
-### Token Introspection
-
-```
-POST /oauth/introspect
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "token": "access_token_here"
-}
-```
-
-**Response (Active Token):**
-```json
-{
-  "active": true,
-  "scope": "openid",
-  "client_id": "your_client_id",
-  "username": "user@example.com",
-  "user_id": 1,
-  "exp": 1708617600,
-  "iat": 1708531200
-}
-```
-
-**Response (Inactive/Expired Token):**
-```json
-{
-  "active": false
-}
-```
-
-## Database Schema
-
-### User
-- `id` - Primary key
-- `email` - Unique user email
-- `passwordHash` - bcrypt hashed password
-- `createdAt` - Account creation timestamp
-
-### AuthCode
-- `id` - Primary key
-- `code` - Unique authorization code
-- `userId` - Foreign key to User
-- `clientId` - OAuth client identifier
-- `redirectUri` - Registered redirect URI
-- `codeChallenge` - PKCE challenge
-- `codeChallengeMethod` - PKCE method (S256)
-- `scope` - Requested scopes
-- `expiresAt` - Code expiration (5 minutes)
-- `used` - One-time use flag
-- `createdAt` - Creation timestamp
-
-### Token
-- `id` - Primary key
-- `token` - Opaque access token
-- `userId` - Foreign key to User
-- `clientId` - OAuth client identifier
-- `scope` - Granted scopes
-- `expiresAt` - Token expiration (24 hours)
-- `createdAt` - Creation timestamp
-
-## Security Features
-
-- PKCE implementation prevents authorization code interception
-- One-time use authorization codes
-- Time-limited auth codes (5 minutes) and tokens (24 hours)
-- bcrypt password hashing with salt rounds
-- Opaque tokens (require introspection for validation)
-
-## Development
+**1. Generate the keys**
 
 ```bash
-# Run Prisma Studio (database GUI)
-npm run db:studio
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -pubout -out public.pem
 ```
 
-## License
+**2. Convert to single-line format**
 
-ISC
+```bash
+awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' private.pem
+awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' public.pem
+```
+
+**3. Paste into `.env` with double quotes**
+
+```env
+PRIVATE_KEY_PEM="-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----END PRIVATE KEY-----\n"
+PUBLIC_KEY_PEM="-----BEGIN PUBLIC KEY-----\nMIIBI...\n-----END PUBLIC KEY-----\n"
+```
+
+> Double quotes are required — dotenv uses them to expand `\n` into real newlines. Without them the key will fail to parse.
+
+**4. Delete the `.pem` files**
+
+```bash
+rm private.pem public.pem
+```
+
+They're not needed once they're in `.env` and must never be committed.
+
+---
+
+## Admin UI
+
+Open `http://localhost:4000/admin.html` — enter your `ADMIN_SECRET` to log in.
+
+Register clients, set redirect URIs, choose token format (JWT or opaque), copy the client secret once for confidential clients.
+
+---
+
+## Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/oauth/authorize` | Start login flow — validates client, returns login form |
+| `POST` | `/oauth/authz-direct` | Submit credentials, issues auth code, redirects |
+| `POST` | `/oauth/token` | Exchange code or refresh token for access token |
+| `POST` | `/oauth/introspect` | Validate a token |
+| `POST` | `/oauth/revoke` | Revoke a refresh token (logout) |
+| `GET` | `/.well-known/jwks.json` | RSA public key for JWT verification |
+| `GET` | `/.well-known/openid-configuration` | Discovery document |
+| `POST` | `/admin/clients` | Register a client (`x-admin-secret` header required) |
+| `GET` | `/admin/clients` | List all clients |
+| `DELETE` | `/admin/clients/:clientId` | Delete a client |
+
+---
+
+## SDKs
+
+**[`@nishant625/auth-react`](https://www.npmjs.com/package/@nishant625/auth-react)**
+React SDK — `<AuthProvider>`, `useAuth()` hook. Handles PKCE + state, token storage, and exposes `isAuthenticated`, `user`, `login()`, `logout()`, `getAccessToken()`.
+
+```bash
+npm install @nishant625/auth-react
+```
+
+**[`@nishant625/auth-node`](https://www.npmjs.com/package/@nishant625/auth-node)**
+Express middleware — verifies RS256 JWTs via JWKS automatically, attaches decoded payload to `req.user`.
+
+```bash
+npm install @nishant625/auth-node
+```
+
+---
+
+## Seed users
+
+| Email | Password |
+|---|---|
+| `alice@example.com` | `password123` |
+| `bob@example.com` | `password123` |
+| `nishant@example.com` | `password123` |
+
+---
+
+## Docs
+
+Concept guides, code reference, and build plans in [`/docs`](./docs/README.md).

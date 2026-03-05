@@ -6,6 +6,8 @@ const { getClient } = require('./clientService');
 
 const prisma = new PrismaClient();
 
+const log = (...args) => console.log('[auth]', ...args);
+
 const hashToken = (token) =>
   crypto.createHash('sha256').update(token).digest('hex');
 
@@ -39,6 +41,7 @@ const createAuthCode = async ({ userId, clientId, redirectUri, codeChallenge, co
     },
   });
 
+  log('code created  user=%d client=%s', userId, clientId);
   return authCode.code;
 };
 
@@ -100,29 +103,38 @@ const issueTokenPair = async ({ userId, email, clientId, scope, tokenFormat }) =
     },
   });
 
+  log('tokens issued  format=%s user=%d client=%s scope=%s', tokenFormat ?? 'jwt', userId, clientId, scope);
   return { accessToken, refreshToken: refreshTokenRaw };
 };
 
 // ─── Code exchange ────────────────────────────────────────────────────────────
 
-const exchangeCodeForToken = async ({ code, clientId, redirectUri, codeVerifier }) => {
+const exchangeCodeForToken = async ({ code, clientId, redirectUri, codeVerifier, clientSecret }) => {
   const authCode = await prisma.authCode.findUnique({
     where: { code },
     include: { user: true },
   });
 
-  if (!authCode) throw new Error('Invalid code');
-  if (authCode.used) throw new Error('Code already used');
+  if (!authCode)                       throw new Error('Invalid code');
+  if (authCode.used)                   throw new Error('Code already used');
   if (authCode.expiresAt < new Date()) throw new Error('Code expired');
-  if (authCode.clientId !== clientId) throw new Error('client_id mismatch');
+  if (authCode.clientId !== clientId)  throw new Error('client_id mismatch');
   if (authCode.redirectUri !== redirectUri) throw new Error('redirect_uri mismatch');
 
   const hash = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
   if (hash !== authCode.codeChallenge) throw new Error('PKCE verification failed');
 
+  const client = await getClient(clientId);
+
+  if (!client.isPublic) {
+    if (!clientSecret) throw new Error('client_secret required for confidential clients');
+    const match = await bcrypt.compare(clientSecret, client.clientSecret);
+    if (!match) throw new Error('Invalid client_secret');
+  }
+
   await prisma.authCode.update({ where: { code }, data: { used: true } });
 
-  const client = await getClient(clientId);
+  log('code exchange ok  user=%d client=%s', authCode.userId, clientId);
 
   return issueTokenPair({
     userId: authCode.userId,
@@ -141,10 +153,10 @@ const refreshAccessToken = async ({ refreshToken, clientId }) => {
     include: { user: true },
   });
 
-  if (!record) throw new Error('Invalid refresh token');
-  if (record.used) throw new Error('Refresh token already used');
-  if (record.expiresAt < new Date()) throw new Error('Refresh token expired');
-  if (record.clientId !== clientId) throw new Error('client_id mismatch');
+  if (!record)                         throw new Error('Invalid refresh token');
+  if (record.used)                     throw new Error('Refresh token already used');
+  if (record.expiresAt < new Date())   throw new Error('Refresh token expired');
+  if (record.clientId !== clientId)    throw new Error('client_id mismatch');
 
   // Rotate: mark old token used
   await prisma.refreshToken.update({
@@ -153,6 +165,8 @@ const refreshAccessToken = async ({ refreshToken, clientId }) => {
   });
 
   const client = await getClient(clientId);
+
+  log('refresh token rotation  user=%d client=%s', record.userId, clientId);
 
   return issueTokenPair({
     userId: record.userId,
@@ -169,6 +183,7 @@ const revokeRefreshToken = async ({ refreshToken, clientId }) => {
   await prisma.refreshToken.deleteMany({
     where: { tokenHash: hashToken(refreshToken), clientId },
   });
+  log('refresh token revoked  client=%s', clientId);
 };
 
 // ─── Introspect ───────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { initKeys, getPublicJwk } = require('./services/keyService');
 const oauthRoutes = require('./routes/oauth');
 const adminRoutes = require('./routes/admin');
@@ -14,6 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/oauth', oauthRoutes);
 app.use('/admin', adminRoutes);
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/.well-known/jwks.json', (req, res) => {
   res.json({ keys: [getPublicJwk()] });

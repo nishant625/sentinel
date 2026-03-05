@@ -6,22 +6,27 @@ const signAccessToken = ({ userId, email, clientId, scope }) => {
   const { privateKey } = getKeyPair();
   const now = Math.floor(Date.now() / 1000);
 
-  return jwt.sign(
-    {
-      sub: String(userId),
-      email,
-      aud: clientId,
-      scope,
-      iat: now,
-      exp: now + 900, // 15 minutes
-    },
-    privateKey,
-    {
-      algorithm: 'RS256',
-      issuer: process.env.ISSUER_URL,
-      keyid: KEY_ID,
-    }
-  );
+  try {
+    return jwt.sign(
+      {
+        sub: String(userId),
+        email,
+        aud: clientId,
+        scope,
+        iat: now,
+        exp: now + 900, // 15 minutes
+      },
+      privateKey,
+      {
+        algorithm: 'RS256',
+        issuer: process.env.ISSUER_URL,
+        keyid: KEY_ID,
+      }
+    );
+  } catch (err) {
+    console.error('[jwt] sign failed:', err.message);
+    throw err;
+  }
 };
 
 // Verifies a JWT, returns the decoded payload or throws

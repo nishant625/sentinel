@@ -1,14 +1,14 @@
 const clientService = require('../services/clientService');
 
 const createClient = async (req, res) => {
-  const { name, isPublic, redirectUris, scopes } = req.body;
+  const { name, isPublic, redirectUris, scopes, tokenFormat } = req.body;
 
   if (!name || !redirectUris || !Array.isArray(redirectUris) || redirectUris.length === 0) {
     return res.status(400).json({ error: 'name and redirectUris (array) are required' });
   }
 
   try {
-    const client = await clientService.registerClient({ name, isPublic, redirectUris, scopes });
+    const client = await clientService.registerClient({ name, isPublic, redirectUris, scopes, tokenFormat });
     res.status(201).json(client);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create client' });

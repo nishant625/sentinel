@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 
 const prisma = new PrismaClient();
 
-const registerClient = async ({ name, isPublic, redirectUris, scopes }) => {
+const registerClient = async ({ name, isPublic, redirectUris, scopes, tokenFormat }) => {
   const clientId = 'clt_' + crypto.randomBytes(12).toString('hex');
 
   let clientSecret = null;
@@ -22,6 +22,7 @@ const registerClient = async ({ name, isPublic, redirectUris, scopes }) => {
       isPublic: isPublic !== false,
       redirectUris: redirectUris || [],
       scopes: scopes || 'openid',
+      tokenFormat: tokenFormat || 'jwt',
     },
   });
 

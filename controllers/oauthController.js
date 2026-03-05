@@ -43,23 +43,30 @@ const authorize = async (req, res) => {
     code_challenge_method,
   });
 
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head><title>Authentication Required</title></head>
-      <body>
-        <h2>Sign In</h2>
-        <form method="POST" action="/oauth/authz-direct">
-          <input type="hidden" name="requestId" value="${requestId}" />
-          <label>Email</label><br/>
-          <input type="email" name="email" required /><br/><br/>
-          <label>Password</label><br/>
-          <input type="password" name="password" required /><br/><br/>
-          <button type="submit">Sign In</button>
-        </form>
-      </body>
-    </html>
-  `);
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Sentinel</title>
+  <link rel="stylesheet" href="/css/login.css" />
+</head>
+<body>
+  <div class="card">
+    <div class="brand">Sentinel</div>
+    <h1>Sign in</h1>
+    <p class="app-name">Requested by <strong>${client.name}</strong></p>
+    <form method="POST" action="/oauth/authz-direct">
+      <input type="hidden" name="requestId" value="${requestId}" />
+      <label>Email</label>
+      <input type="email" name="email" required autofocus placeholder="you@example.com" />
+      <label>Password</label>
+      <input type="password" name="password" required placeholder="••••••••" />
+      <button type="submit">Continue</button>
+    </form>
+  </div>
+</body>
+</html>`);
 };
 
 const authzDirect = async (req, res) => {
@@ -90,8 +97,9 @@ const authzDirect = async (req, res) => {
   res.redirect(redirectUrl);
 };
 
-const token = async (req, res) => {
-  const { grant_type, code, redirect_uri, client_id, code_verifier, refresh_token } = req.body;
+const 
+token = async (req, res) => {
+  const { grant_type, code, redirect_uri, client_id, code_verifier, refresh_token, client_secret } = req.body;
 
   if (grant_type === 'authorization_code') {
     if (!code || !redirect_uri || !client_id || !code_verifier) {
@@ -104,6 +112,7 @@ const token = async (req, res) => {
         clientId: client_id,
         redirectUri: redirect_uri,
         codeVerifier: code_verifier,
+        clientSecret: client_secret,
       });
 
       return res.json({
@@ -115,6 +124,7 @@ const token = async (req, res) => {
         scope: 'openid',
       });
     } catch (err) {
+      console.error('[token] exchange failed  grant=authorization_code:', err.message);
       return res.status(400).json({ error: err.message });
     }
   }
@@ -138,6 +148,7 @@ const token = async (req, res) => {
         refresh_token_expires_in: 2592000,
       });
     } catch (err) {
+      console.error('[token] exchange failed  grant=refresh_token:', err.message);
       return res.status(400).json({ error: err.message });
     }
   }

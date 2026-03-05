@@ -20,6 +20,7 @@ Each file covers one topic. Read them in order.
 | 09 | [Token Format Choice](./09-token-format-choice.md) | How auth servers let clients pick opaque vs JWT, when to use each |
 | 10 | [PKCE + State + Public Keys](./10-pkce-state-and-public-keys.md) | Is PKCE the standard? Yes. Why the public JWKS URL is not a security risk. |
 | 11 | [Client Registry and Tenancy](./11-client-registry-and-tenancy.md) | Should the server generate client IDs? Auth0 model vs Keycloak model explained. |
+| 12 | [Persistent Keys](./12-persistent-keys.md) | Why public keys are exposed, how to generate + load RSA keys in production. |
 
 ---
 

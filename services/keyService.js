@@ -5,12 +5,27 @@ const KEY_ID = 'sentinel-key-1';
 let keyPair = null;
 
 const initKeys = () => {
-  keyPair = crypto.generateKeyPairSync('rsa', {
-    modulusLength: 2048,
-    publicKeyEncoding:  { type: 'spki',  format: 'pem' },
-    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-  });
-  console.log('RSA key pair generated');
+  if (process.env.PRIVATE_KEY_PEM && process.env.PUBLIC_KEY_PEM) {
+    keyPair = {
+      privateKey: process.env.PRIVATE_KEY_PEM.replace(/\\n/g, '\n'),
+      publicKey:  process.env.PUBLIC_KEY_PEM.replace(/\\n/g, '\n'),
+    };
+
+    try {
+      crypto.createPrivateKey(keyPair.privateKey);
+      console.log('[keys] loaded from environment  kid=%s', KEY_ID);
+    } catch (err) {
+      console.error('[keys] private key parse failed:', err.message);
+      throw err;
+    }
+  } else {
+    keyPair = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding:  { type: 'spki',  format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    console.log('[keys] generated ephemeral key pair  kid=%s  (set PRIVATE_KEY_PEM to persist)', KEY_ID);
+  }
 };
 
 const getKeyPair = () => {
